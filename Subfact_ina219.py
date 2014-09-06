@@ -101,7 +101,15 @@ class INA219:
 		self.debug = debug
 		
 		self.ina219SetCalibration_32V_2A()
-		
+	
+	def twosToInt(self, val, len):
+		# Convert twos compliment to integer
+
+		if(val & (1 << len - 1)):
+			val = val - (1<<len)
+
+		return val
+
 	def ina219SetCalibration_32V_2A(self):
 		self.ina219_currentDivider_mA = 10  # Current LSB = 100uA per bit (1000/100 = 10)
 		self.ina219_powerDivider_mW = 2     # Power LSB = 1mW per bit (2/1)
@@ -112,14 +120,14 @@ class INA219:
 		
 		# Set Config register to take into account the settings above
 		config = self.__INA219_CONFIG_BVOLTAGERANGE_32V | \
-		         self.__INA219_CONFIG_GAIN_8_320MV | \
-		         self.__INA219_CONFIG_BADCRES_12BIT | \
-		         self.__INA219_CONFIG_SADCRES_12BIT_1S_532US | \
-		         self.__INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS
+				 self.__INA219_CONFIG_GAIN_8_320MV | \
+				 self.__INA219_CONFIG_BADCRES_12BIT | \
+				 self.__INA219_CONFIG_SADCRES_12BIT_1S_532US | \
+				 self.__INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS
 		
 		bytes = [(config >> 8) & 0xFF, config & 0xFF]
 		self.i2c.writeList(self.__INA219_REG_CONFIG, bytes)
-		
+
 	def getBusVoltage_raw(self):
 		result = self.i2c.readU16(self.__INA219_REG_BUSVOLTAGE)
 		
@@ -129,24 +137,27 @@ class INA219:
 	def getShuntVoltage_raw(self):
 		result = self.i2c.readList(self.__INA219_REG_SHUNTVOLTAGE,2)
 		if (result[0] >> 7 == 1):
-			value = ((result[0] & 0xF0) | ( result[1])) - 1
-			return ~ value
+			testint = (result[0]*256 + result[1])
+			othernew = self.twosToInt(testint, 16)
+			return othernew
 		else:
 			return (result[0] << 8) | (result[1])
-		
+
 	def getCurrent_raw(self):
 		result = self.i2c.readList(self.__INA219_REG_CURRENT,2)
 		if (result[0] >> 7 == 1):
-			value = ((result[0] & 0xF0) | ( result[1])) - 1
-			return ~ value
+			testint = (result[0]*256 + result[1])
+			othernew = self.twosToInt(testint, 16)
+			return othernew
 		else:
 			return (result[0] << 8) | (result[1])
 
 	def getPower_raw(self):
 		result = self.i2c.readList(self.__INA219_REG_POWER,2)
 		if (result[0] >> 7 == 1):
-			value = ((result[0] & 0xF0) | ( result[1])) - 1
-			return ~ value
+			testint = (result[0]*256 + result[1])
+			othernew = self.twosToInt(testint, 16)
+			return othernew
 		else:
 			return (result[0] << 8) | (result[1])
 
@@ -162,6 +173,7 @@ class INA219:
 		valueDec = self.getCurrent_raw()
 		valueDec /= self.ina219_currentDivider_mA
 		return valueDec
+		
 	def getPower_mW(self):
 		valueDec = self.getPower_raw()
 		valueDec /= self.ina219_powerDivider_mW
